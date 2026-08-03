@@ -1,0 +1,21 @@
+package com.masalewala.api.model;
+import jakarta.persistence.*;import java.math.BigDecimal;import java.time.*;import java.util.*;
+public final class Models{private Models(){} public enum RoleName{CUSTOMER,ADMIN} public enum OrderStatus{ORDER_PLACED,PAYMENT_VERIFIED,PACKING,SHIPPED,OUT_FOR_DELIVERY,DELIVERED,CANCELLED} public enum PaymentStatus{PENDING,UPLOADED,APPROVED,REJECTED,ONLINE_VERIFIED} public enum PaymentMethod{UPI,GOOGLE_PAY,PHONEPE,PAYTM,BHIM,CREDIT_CARD,DEBIT_CARD,NET_BANKING,COD}
+@MappedSuperclass public static class BaseEntity{@Id @GeneratedValue(strategy=GenerationType.IDENTITY) public Long id; public Instant createdAt=Instant.now(); public Instant updatedAt=Instant.now(); @PreUpdate void touch(){updatedAt=Instant.now();}}
+@Entity public static class User extends BaseEntity{public String name;@Column(unique=true) public String email;public String phone;public String passwordHash;public boolean emailVerified;@ElementCollection(fetch=FetchType.EAGER) @Enumerated(EnumType.STRING) public Set<RoleName> roles=new HashSet<>();}
+@Entity public static class Category extends BaseEntity{@Column(unique=true) public String name;public String slug;public String imageUrl;}
+@Entity public static class Product extends BaseEntity{public String name;@Column(length=1000) public String description;public BigDecimal price;public int discount;public int stock;public double rating;public int reviews;public String imageUrl;public boolean bestSeller;public boolean newest;@ManyToOne public Category category;}
+@Entity public static class Address extends BaseEntity{@ManyToOne public User user;public String line1;public String city;public String state;public String pinCode;public String phone;public boolean saved;}
+@Entity(name="orders") public static class Order extends BaseEntity{@ManyToOne public User user;@ManyToOne public Address address;@Enumerated(EnumType.STRING) public OrderStatus status=OrderStatus.ORDER_PLACED;public BigDecimal subtotal;public BigDecimal gst;public BigDecimal shipping;public BigDecimal grandTotal;public LocalDate expectedDelivery;public String trackingNumber;@OneToMany(mappedBy="order",cascade=CascadeType.ALL) public List<OrderItem> items=new ArrayList<>();}
+@Entity public static class OrderItem extends BaseEntity{@ManyToOne public Order order;@ManyToOne public Product product;public String weight;public int quantity;public BigDecimal price;}
+@Entity public static class Payment extends BaseEntity{@OneToOne public Order order;@Enumerated(EnumType.STRING) public PaymentMethod method;@Enumerated(EnumType.STRING) public PaymentStatus status=PaymentStatus.PENDING;public String upiId;public String screenshotUrl;public String razorpayPaymentId;public String adminNote;}
+@Entity public static class Review extends BaseEntity{@ManyToOne public User user;@ManyToOne public Product product;public int rating;@Column(length=1000) public String comment;public boolean verifiedPurchase;}
+@Entity public static class Wishlist extends BaseEntity{@ManyToOne public User user;@ManyToOne public Product product;}
+@Entity public static class Inventory extends BaseEntity{@OneToOne public Product product;public int availableStock;public int alertThreshold;}
+@Entity public static class Coupon extends BaseEntity{@Column(unique=true) public String code;public int discountPercent;public boolean active;public LocalDate expiresOn;}
+@Entity public static class Branch extends BaseEntity{public String city;public String address;public String phone;public String openHours;public String googleMapsLink;}
+@Entity public static class Faq extends BaseEntity{public String question;@Column(length=1200) public String answer;}
+@Entity public static class Testimonial extends BaseEntity{public String customerName;public String photoUrl;public int rating;public String comment;public boolean verifiedPurchase;}
+@Entity public static class Video extends BaseEntity{public String title;public String youtubeId;public String thumbnailUrl;}
+@Entity public static class Notification extends BaseEntity{@ManyToOne public User user;public String title;public String message;public boolean read;}
+@Entity public static class AuditLog extends BaseEntity{public String actor;public String action;public String entityName;public Long entityId;public String ipAddress;}}

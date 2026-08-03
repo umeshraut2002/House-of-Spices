@@ -1,0 +1,3 @@
+package com.masalewala.api.controller;
+import com.masalewala.api.repository.Repositories.*;import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/content") public class ContentController{private final Branches branches;private final Faqs faqs;private final Testimonials testimonials;private final Videos videos;ContentController(Branches b,Faqs f,Testimonials t,Videos v){branches=b;faqs=f;testimonials=t;videos=v;}@GetMapping("/branches") Object branches(){return branches.findAll();}@GetMapping("/faqs") Object faqs(){return faqs.findAll();}@GetMapping("/testimonials") Object testimonials(){return testimonials.findAll();}@GetMapping("/videos") Object videos(){return videos.findAll();}}

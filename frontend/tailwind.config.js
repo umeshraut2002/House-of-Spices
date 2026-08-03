@@ -1,0 +1,1 @@
+export default { content: ["./index.html","./src/**/*.{ts,tsx}"], theme: { extend: { colors: { masala: { red: "#8B0000", black: "#111111", gold: "#D4AF37", cream: "#FFF8F0" } }, fontFamily: { heading: ["Playfair Display","serif"], body: ["Poppins","sans-serif"] }, boxShadow: { premium: "0 18px 50px rgba(17,17,17,.12)" } } }, plugins: [] };

@@ -1,0 +1,7 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
+import { z } from "zod";
+import { Button } from "../components/ui/Button";
+const schema=z.object({name:z.string().min(2),phone:z.string().regex(/^[6-9]\d{9}$/),pin:z.string().regex(/^\d{6}$/),address:z.string().min(10)});
+export function Checkout(){const {register,formState:{errors}}=useForm({resolver:zodResolver(schema)});return <section className="mx-auto max-w-5xl px-4 py-10"><h1 className="font-heading text-5xl text-masala-red">Checkout</h1><div className="mt-8 grid gap-6 md:grid-cols-2"><form className="space-y-4 rounded-lg bg-white p-6 shadow-premium"><h2 className="font-heading text-2xl">Shipping Address</h2>{["name","phone","pin","address"].map(f=><label key={f} className="block capitalize">{f}<input {...register(f as any)} className="mt-1 w-full rounded-md border p-3"/><span className="text-xs text-masala-red">{(errors as any)[f]?.message}</span></label>)}<p className="rounded-md bg-masala-cream p-3">Saved Address: Home, Jaipur. Estimated Delivery: 3-5 business days.</p><Link to="/payment"><Button className="bg-masala-red text-white">Continue to Payment</Button></Link></form><aside className="rounded-lg bg-white p-6 shadow-premium"><h2 className="font-heading text-2xl">Order Summary</h2><p className="mt-3 text-zinc-600">Review cart totals, delivery address and payment method before placing order.</p></aside></div></section>}

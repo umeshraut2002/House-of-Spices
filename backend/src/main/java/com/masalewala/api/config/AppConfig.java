@@ -1,0 +1,4 @@
+package com.masalewala.api.config;
+import com.masalewala.api.repository.Repositories.*;import org.springframework.context.annotation.*;import org.springframework.data.jpa.repository.config.EnableJpaRepositories;import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;import org.springframework.security.crypto.password.PasswordEncoder;import org.springframework.web.cors.*;import java.util.*;
+@Configuration @EnableJpaRepositories(basePackageClasses=Products.class,considerNestedRepositories=true)
+public class AppConfig{@Bean PasswordEncoder passwordEncoder(){return new BCryptPasswordEncoder();}@Bean CorsConfigurationSource cors(){var c=new CorsConfiguration();c.setAllowedOrigins(List.of("*"));c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));c.setAllowedHeaders(List.of("*"));var s=new UrlBasedCorsConfigurationSource();s.registerCorsConfiguration("/**",c);return s;}}

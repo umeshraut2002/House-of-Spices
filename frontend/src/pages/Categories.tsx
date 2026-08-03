@@ -1,0 +1,6 @@
+import { Link } from "react-router-dom";
+import { categories, categoryImages } from "../lib/data";
+
+export function Categories(){
+  return <section className="bg-masala-cream px-4 py-12"><div className="mx-auto max-w-7xl"><div className="max-w-3xl"><p className="font-semibold text-masala-gold">Shop By Category</p><h1 className="font-heading text-5xl font-extrabold text-masala-red md:text-6xl">Product Categories</h1><p className="mt-4 text-zinc-700">Explore fresh Indian spice powders and signature masala blends for everyday cooking, snacks, curries, and festive meals.</p></div><div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{categories.map(category=><Link to={`/products?category=${encodeURIComponent(category)}`} key={category} className="overflow-hidden rounded-lg bg-white shadow-premium transition hover:-translate-y-1"><img src={categoryImages[category]} onError={e=>{e.currentTarget.src="/images/spice-market-hero.png"}} alt={category} className="h-48 w-full object-cover"/><div className="p-5"><h2 className="font-heading text-2xl font-bold text-masala-red">{category}</h2><p className="mt-2 text-sm text-zinc-600">Browse premium {category.toLowerCase()} with fresh aroma and careful packing.</p></div></Link>)}</div></div></section>
+}
