@@ -74,3 +74,36 @@ variable "single_nat_gateway"{
     type = bool
     default = true
 }
+
+# ----------- EC2 INSTANCE  ---------------
+
+variable "ec2_instance_type"{
+    description = "ec2 instance type for backend application"
+    type = string
+    default = "t3.micro"
+}
+
+variable "ec2_ami_id"{
+    description = "AMI ID for backend ec2 aplication"
+    type = string
+    default = ""
+}
+
+variable "asg_min_size"{
+    description = "Minimum nuber of EC2 instance"
+    type = number
+    default = 1
+}
+
+variable "asg_desired_capacity"{
+    description = "Desired number of ec2 instances"
+    type = number 
+    default = 1
+}
+
+variable "asg_max_size"{
+    description = "Maximum number of ec2 instances"
+    type = number
+    default = 2
+}
+
