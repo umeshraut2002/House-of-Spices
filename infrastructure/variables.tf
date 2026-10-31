@@ -133,3 +133,44 @@ variable "db_engine" {
     default = "mysql"
 }
 
+variable "db_engine_version" {
+    description = "RDS mysql engine version"
+    type = string
+    default "8.0"
+}
+
+variable "db_instance_class" {
+    description = "RDS instance class"
+    type = string
+    default = "db.t3.micro"
+}
+
+variable "db_name" [
+    description = "Application database name"
+    type = string 
+    default  = "masalewala"
+]
+
+variable "db_username" {
+    description = "RDS master username"
+    type = string
+    default = "dbadmin"
+}
+
+variable "db_max_allocated_storage" {
+    description = "Intial RDS storage in GB"
+    type = number 
+    default = 20
+}
+
+variable "db_max_allocated_storage" {
+    description = "Maximum RDS storage in GB"
+    type = number
+    default = 100
+}
+
+variable "db_multi_az" {
+    description = "enable RDS multi AZ deployment"
+    type = bool
+    default = false
+}
