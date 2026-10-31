@@ -107,3 +107,29 @@ variable "asg_max_size"{
     default = 2
 }
 
+# Application configuration
+variable "backend_port" {
+    description = "backend application listening port"
+    type = number
+    default = 8080
+}
+
+variable "health_check_path" {
+    description = "backend healthcheck endpoint"
+    type = string
+    default = "/actuator/health"
+}
+
+variable "frontend_build_directory" {
+    description = "frontend production build directory"
+    type = string
+    default = "../../frontend/dist"
+}
+
+# Database Configuration 
+variable "db_engine" {
+    description = "database engine"
+    type = string
+    default = "mysql"
+}
+
