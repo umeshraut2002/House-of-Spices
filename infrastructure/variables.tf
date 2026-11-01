@@ -66,7 +66,7 @@ variable "private_db_subnet_cidrs"{
 variable "enable_nat_gateway"{
     description = "whwrher to create NAT gateways"
     type = bool
-    default true
+    default = true
 }
 
 variable "single_nat_gateway"{
@@ -136,7 +136,7 @@ variable "db_engine" {
 variable "db_engine_version" {
     description = "RDS mysql engine version"
     type = string
-    default "8.0"
+    default = "8.0"
 }
 
 variable "db_instance_class" {
@@ -202,8 +202,8 @@ variable "enable_waf" {
 }
 
 variable "Enable_rds_encryption" {
-    description + "enable RDS stprage encryption"
-    type =k bool
+    description = "enable RDS stprage encryption"
+    type = bool
     default = true
 }
 
