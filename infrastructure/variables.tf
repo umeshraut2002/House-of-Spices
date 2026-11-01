@@ -193,3 +193,23 @@ variable "backend_subdomain" {
     type = string 
     default = "api"
 }
+
+# Secuirity configuration
+variable "enable_waf" {
+    description = "enable aws WAF protection"
+    type = bool
+    default = true
+}
+
+variable "Enable_rds_encryption" {
+    description + "enable RDS stprage encryption"
+    type =k bool
+    default = true
+}
+
+variable "enable_deletion_protection" {
+    description = "enable RDS deletion protection"
+    type = bool
+    default = false
+}
+
