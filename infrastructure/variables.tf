@@ -174,3 +174,22 @@ variable "db_multi_az" {
     type = bool
     default = false
 }
+
+# Domain and SSL configuration 
+variable "domain_name" {
+    description = "root application domain name"
+    type = string
+    default = "dreamwebt.in"
+}
+
+variable "frontend_subdomain" {
+    description = "frontend subdomain name"
+    type = string 
+    default = "wwww"
+}
+
+variable "backend_subdomain" {
+    description = "BAckend API subdomain"
+    type = string 
+    default = "api"
+}
