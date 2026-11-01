@@ -213,3 +213,21 @@ variable "enable_deletion_protection" {
     default = false
 }
 
+# Monitoring Configuration
+variable "enable_cloudwatch_alarms" {
+    description = "Enable cloudwatch monitoring alarm"
+    type = bool
+    default = true
+}
+
+variable "cpu_high_threshold" {
+    description = "CPU utilization threeshold for scalling and alarm"
+    type = number
+    default = 70
+}
+
+variable "log_retention_days" {
+    description = "Cloudwatch log retention period"
+    type = number
+    default = 7 
+}
