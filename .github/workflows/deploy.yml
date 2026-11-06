@@ -1,15 +1,189 @@
-name: build-and-deploy
-on: { push: { branches: [main] } }
+
+name: House of Spices CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      apply_infra:
+        description: 'Run Terraform infrastructure deployment'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: house-of-spices-backend
+  EKS_CLUSTER: house-of-spices-eks
+  K8S_NAMESPACE: production
+  DEPLOYMENT: house-of-spices-app
+  CONTAINER: house-of-spices-backend
+  IMAGE_TAG: ${{ github.sha }}
+
 jobs:
-  build:
+  build-and-deploy:
+    name: CI/CD Pipeline
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 22 }
-      - run: npm --prefix frontend install
-      - run: npm --prefix frontend run build
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 21 }
-      - run: mvn -q -f backend/pom.xml -DskipTests package
-      - run: docker compose build
+
+      # 1. Checkout source code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Configure Java and Maven
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # 3. Configure AWS credentials using OIDC
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 4. Terraform infrastructure
+      - name: Setup Terraform
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_infra
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_infra
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Validate
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_infra
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_infra
+        working-directory: terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: github.event_name == 'workflow_dispatch' && inputs.apply_infra
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      # 5. Build and unit testing
+      - name: Maven Build
+        run: mvn clean verify
+
+      # 6. SonarQube analysis and quality gate
+      - name: SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          mvn sonar:sonar \
+            -Dsonar.projectKey=house-of-spices \
+            -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
+            -Dsonar.token=$SONAR_TOKEN \
+            -Dsonar.qualitygate.wait=true
+
+      # 7. Trivy filesystem scan
+      - name: Trivy Filesystem Scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      # 8. Upload JAR artifact to Nexus
+      - name: Upload Artifact to Nexus
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+        run: |
+          mkdir -p ~/.m2
+
+          cat > ~/.m2/settings.xml <<EOF
+          <settings>
+            <servers>
+              <server>
+                <id>nexus-releases</id>
+                <username>${NEXUS_USERNAME}</username>
+                <password>${NEXUS_PASSWORD}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+          mvn deploy -DskipTests
+
+      # 9. Docker build
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t $ECR_REPOSITORY:$IMAGE_TAG .
+
+      # 10. Trivy image scan
+      - name: Trivy Docker Image Scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: house-of-spices-backend:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      # 11. Login to Amazon ECR
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 12. Tag and push Docker image
+      - name: Push Image to ECR
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          docker tag \
+            $ECR_REPOSITORY:$IMAGE_TAG \
+            $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          docker push \
+            $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 13. Configure kubectl for EKS
+      - name: Update EKS Kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region $AWS_REGION \
+            --name $EKS_CLUSTER
+
+      # 14. Deploy application to EKS
+      - name: Deploy to Amazon EKS
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          kubectl set image \
+            deployment/$DEPLOYMENT \
+            $CONTAINER=$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -n $K8S_NAMESPACE
+
+          kubectl rollout status \
+            deployment/$DEPLOYMENT \
+            -n $K8S_NAMESPACE \
+            --timeout=300s
+
+      # 15. Pipeline result
+      - name: Pipeline Success
+        if: success()
+        run: echo "CI/CD pipeline completed successfully!"
+
+      - name: Pipeline Failure
+        if: failure()
+        run: echo "CI/CD pipeline failed. Check GitHub Actions logs."

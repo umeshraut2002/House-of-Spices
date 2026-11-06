@@ -1,0 +1,209 @@
+
+pipeline {
+    agent any
+
+    parameters {
+        booleanParam(
+            name: 'APPLY_INFRA',
+            defaultValue: false,
+            description: 'Provision or update AWS infrastructure using Terraform'
+        )
+    }
+
+    environment {
+        AWS_REGION = 'ap-south-1'
+        AWS_ACCOUNT_ID = '123456789012'
+        ECR_REPO = 'house-of-spices-backend'
+        EKS_CLUSTER = 'house-of-spices-eks'
+        K8S_NAMESPACE = 'production'
+        DEPLOYMENT = 'house-of-spices-app'
+        CONTAINER = 'house-of-spices-backend'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        SONARQUBE = 'sonarqube-server'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/company/house-of-spices.git'
+            }
+        }
+
+        // 1. Terraform infrastructure
+        stage('Terraform Init and Plan') {
+            when {
+                expression { params.APPLY_INFRA }
+            }
+            steps {
+                dir('terraform') {
+                    sh '''
+                        terraform init
+                        terraform validate
+                        terraform plan -out=tfplan
+                    '''
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            when {
+                expression { params.APPLY_INFRA }
+            }
+            steps {
+                input message: 'Approve Terraform infrastructure changes?'
+                dir('terraform') {
+                    sh 'terraform apply -auto-approve tfplan'
+                }
+            }
+        }
+
+        // 2. Build and test
+        stage('Build and Unit Test') {
+            steps {
+                sh '''
+                    mvn clean package
+                '''
+            }
+        }
+
+        // 3. SonarQube analysis
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv("${SONARQUBE}") {
+                    sh '''
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=house-of-spices
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "SonarQube Quality Gate failed!"
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Trivy filesystem scan
+        stage('Trivy Filesystem Scan') {
+            steps {
+                sh '''
+                    trivy fs \
+                    --exit-code 1 \
+                    --severity HIGH,CRITICAL \
+                    .
+                '''
+            }
+        }
+
+        // 5. Upload JAR to Nexus
+        stage('Upload Artifact to Nexus') {
+            steps {
+                sh '''
+                    mvn deploy -DskipTests
+                '''
+            }
+        }
+
+        // 6. Docker image build
+        stage('Docker Build') {
+            steps {
+                sh '''
+                    docker build \
+                    -t $ECR_REPO:$IMAGE_TAG .
+                '''
+            }
+        }
+
+        // 7. Trivy Docker image scan
+        stage('Trivy Image Scan') {
+            steps {
+                sh '''
+                    trivy image \
+                    --exit-code 1 \
+                    --severity HIGH,CRITICAL \
+                    $ECR_REPO:$IMAGE_TAG
+                '''
+            }
+        }
+
+        // 8. Push image to Amazon ECR
+        stage('Push to Amazon ECR') {
+            steps {
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-credentials'
+                    ]
+                ]) {
+                    sh '''
+                        aws ecr get-login-password \
+                        --region $AWS_REGION |
+                        docker login \
+                        --username AWS \
+                        --password-stdin \
+                        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+                        docker tag \
+                        $ECR_REPO:$IMAGE_TAG \
+                        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+
+                        docker push \
+                        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                    '''
+                }
+            }
+        }
+
+        // 9. Deploy to Amazon EKS
+        stage('Deploy to Amazon EKS') {
+            steps {
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-credentials'
+                    ]
+                ]) {
+                    sh '''
+                        aws eks update-kubeconfig \
+                        --region $AWS_REGION \
+                        --name $EKS_CLUSTER
+
+                        kubectl set image \
+                        deployment/$DEPLOYMENT \
+                        $CONTAINER=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG \
+                        -n $K8S_NAMESPACE
+
+                        kubectl rollout status \
+                        deployment/$DEPLOYMENT \
+                        -n $K8S_NAMESPACE \
+                        --timeout=300s
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'CI/CD Pipeline completed successfully!'
+        }
+
+        failure {
+            echo 'CI/CD Pipeline failed. Check Jenkins console output.'
+        }
+
+        always {
+            echo 'Pipeline execution completed.'
+        }
+    }
+}
