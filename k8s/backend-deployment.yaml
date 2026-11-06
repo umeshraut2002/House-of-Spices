@@ -1,35 +1,31 @@
 apiVersion: apps/v1
-kindi: Deployment
-metadata:
-  name: web-app
-spec: 
-  replicas: 4
+kind: Deployment
+metadata: 
+  name: house-of-spices-app
+spec:
+  replicas: 3
   selector:
     matchLabels:
-      app: web-app
+      app: house-of-spices-app
   template:
     metadata:
       labels:
-        app: web-app
+        app: house-of-spices-app
     spec:
-    containers:
-      - name: web
-        image: nginx:1.28
-        ports:
-          - containerPort: 80
-        resources:
-          requests: 
-            cpu: "100m"
-            memory: "128Mi"
-          limits:
-            cpu: "500m"
-            memory: "256"
-        volumeMounts:
-          - name: web-storage
-            path: /usr/share/nginx/html 
-    volumes:
-      name: web-storage
-      persistentVolumeClaim:
-        name: web-app-pvc 
-
-
+      containers:
+        - name: house-of-spices
+          image: nginx:1.28
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            linits:
+              cpu: "500m"
+              memory: "256Mi"
+            volumeMounts:
+              - name: house-of-spices-storage
+                path: /usr/share/nginx/html
+          volumes:
+            
