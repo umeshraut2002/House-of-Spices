@@ -1,19 +1,53 @@
+# persistent volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: web-app-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual
+  hostPath:
+    path: /mnt/data/web-app
+
+---
+
+# PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: web-app-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
-metadata: 
+metadata:
   name: house-of-spices-app
 spec:
-  replicas: 3
+  replicas: 4
   selector:
     matchLabels:
       app: house-of-spices-app
+
   template:
     metadata:
       labels:
         app: house-of-spices-app
     spec:
       containers:
-        - name: house-of-spices
+        - name: house-of-spices-backend
           image: nginx:1.28
           ports:
             - containerPort: 80
@@ -21,11 +55,27 @@ spec:
             requests:
               cpu: "100m"
               memory: "128Mi"
-            linits:
-              cpu: "500m"
-              memory: "256Mi"
-            volumeMounts:
-              - name: house-of-spices-storage
-                path: /usr/share/nginx/html
-          volumes:
-            
+          volumeMounts:
+            - name: web-storage
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: web-storage
+          persistentVolumeClaim:
+            claimName: web-app-pvc
+
+--- 
+
+# service loadbalancer for backend
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: LoadBalancer 
+  selector:
+    app: web-app
+  ports:
+   - name: http
+     portocol: TCP
+     port: 80
+     targetPort: 80
